@@ -207,16 +207,16 @@ class SignalHandler {
   static void HandleOrReraiseSignal(int signo,
                                     siginfo_t* siginfo,
                                     void* context) {
-    if (handler_->first_chance_handler_ &&
-        handler_->first_chance_handler_(
-            signo, siginfo, static_cast<ucontext_t*>(context))) {
-      return;
-    }
-
     // Only handle the first fatal signal observed. If another thread receives a
     // crash signal, it waits for the first dump to complete instead of
     // requesting another.
     if (!handler_->disabled_.test_and_set()) {
+      if (handler_->first_chance_handler_ &&
+          handler_->first_chance_handler_(
+              signo, siginfo, static_cast<ucontext_t*>(context))) {
+        _exit(EXIT_FAILURE);
+      }
+
       handler_->HandleCrash(signo, siginfo, context);
       handler_->WakeThreads();
       if (handler_->last_chance_handler_ &&
